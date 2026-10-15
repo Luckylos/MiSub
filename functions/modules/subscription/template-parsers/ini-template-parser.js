@@ -1,5 +1,6 @@
 import { createUnifiedTemplateModel } from '../template-model.js';
 import { pinRemoteRuleUrl } from '../builtin-rules-provider.js';
+import { parseMrsRuleSource, assertMrsRuleProviders } from '../mrs-rule-provider.js';
 
 function parseIniSections(templateText) {
     const lines = String(templateText || '').split(/\r?\n/);
@@ -69,13 +70,22 @@ function parseRuleLine(line) {
 }
 
 function parseAclRuleSetLine(line) {
-    const raw = line.replace(/^ruleset=/i, '');
-    const parts = raw.split(',').map((part) => part.trim());
-    if (parts.length < 2) return null;
+    const raw = line.trim().replace(/^ruleset=/i, '');
+    const separator = raw.indexOf(',');
+    if (separator < 0) return null;
 
-    const policy = parts[0];
-    let source = parts.slice(1).join(',');
+    const policy = raw.slice(0, separator).trim();
+    let source = raw.slice(separator + 1).trim();
+    const mrsSource = parseMrsRuleSource(source);
+    if (mrsSource) {
+        return { type: 'rule-set', policy, source: 'remote', ...mrsSource };
+    }
 
+    // Legacy declarations historically trim each comma-separated component.
+    source = source
+        .split(',')
+        .map((part) => part.trim())
+        .join(',');
     // Clean up protocol prefixes like clash-classic:, surge:, etc.
     source = source.replace(/^(clash-classic|surge|quanx|loon|sing-box|singbox):/i, '');
 
@@ -202,7 +212,7 @@ export function parseIniTemplate(templateText, options = {}) {
         .filter(Boolean)
         .concat(parsedAclRules);
 
-    return createUnifiedTemplateModel({
+    const model = createUnifiedTemplateModel({
         meta: {
             name: options.fileName || 'MiSub',
             source: 'ini',
@@ -225,4 +235,6 @@ export function parseIniTemplate(templateText, options = {}) {
         },
         extras: parsedChainProxy.length > 0 ? { chainProxy: parsedChainProxy } : {},
     });
+    assertMrsRuleProviders(model, model.meta.target);
+    return model;
 }

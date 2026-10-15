@@ -3,6 +3,7 @@ import { clashFix } from '../../../utils/format-utils.js';
 import { normalizeUnifiedTemplateModel } from '../template-model.js';
 import { DNS_PROXY_GROUP, resolveSafeDnsConfig } from '../safe-dns.js';
 import { applyMihomoChainProxy } from '../mihomo-chain-proxy.js';
+import { assertMrsRuleProviders, MrsRuleProviderError } from '../mrs-rule-provider.js';
 
 function mapGroupType(type) {
     const normalized = String(type || '')
@@ -157,13 +158,15 @@ function mapRule(rule, ruleProviderMap) {
     if (type === 'GEOIP') return `GEOIP,${rule.value || 'CN'},${rule.policy}`;
     if (type === 'RULE-SET') {
         const providerName = ruleProviderMap.get(rule.value);
-        return `RULE-SET,${providerName || rule.value},${rule.policy}`;
+        const noResolve = rule.provider?.format === 'mrs' && rule.extras?.includes('no-resolve');
+        return `RULE-SET,${providerName || rule.value},${rule.policy}${noResolve ? ',no-resolve' : ''}`;
     }
     return `${type},${rule.value},${rule.policy}`;
 }
 
 export function renderClashFromTemplateModel(model) {
     const normalizedModel = normalizeUnifiedTemplateModel(model);
+    assertMrsRuleProviders(normalizedModel, 'clash');
 
     // 所有客户端都保留链式策略组；仅 Mihomo/Meta 展开节点级 dialer-proxy。
     if (Array.isArray(normalizedModel.extras?.chainProxy)) {
@@ -174,14 +177,21 @@ export function renderClashFromTemplateModel(model) {
 
     const ruleProviders = {};
     const ruleProviderMap = new Map();
+    const providerMetadata = new Map();
     let providerCounter = 0;
 
     normalizedModel.rules.forEach((rule) => {
         const type = String(rule.type || '').toUpperCase();
         if (type !== 'RULE-SET' || !rule.value || !/^https?:\/\//i.test(rule.value)) return;
 
-        const providerUrl = toClashRuleProviderUrl(rule.value);
+        const isMrs = rule.provider?.format === 'mrs';
+        const providerUrl = isMrs ? rule.value : toClashRuleProviderUrl(rule.value);
+        const metadata = isMrs ? `mrs:${rule.provider.behavior}` : 'legacy';
+        if (providerMetadata.has(providerUrl) && providerMetadata.get(providerUrl) !== metadata) {
+            throw new MrsRuleProviderError('conflicting declarations for the same source');
+        }
         if (ruleProviderMap.has(providerUrl)) return;
+        providerMetadata.set(providerUrl, metadata);
 
         let nameHint = 'rs';
         try {
@@ -190,7 +200,10 @@ export function renderClashFromTemplateModel(model) {
                 urlPath
                     .split('/')
                     .pop()
-                    ?.replace(/\.(yaml|yml|list|txt|conf)$/i, '') || '';
+                    ?.replace(
+                        isMrs ? /\.(mrs|yaml|yml|list|txt|conf)$/i : /\.(yaml|yml|list|txt|conf)$/i,
+                        ''
+                    ) || '';
             if (fileName) {
                 nameHint = fileName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
             }
@@ -203,11 +216,11 @@ export function renderClashFromTemplateModel(model) {
         const usesTextList = /\.(list|txt)$/i.test(providerUrl);
         ruleProviders[providerName] = {
             type: 'http',
-            behavior: getRuleProviderBehavior(providerUrl),
+            behavior: isMrs ? rule.provider.behavior : getRuleProviderBehavior(providerUrl),
             url: providerUrl,
-            path: `./ruleset/${providerName}.${usesTextList ? 'list' : 'yaml'}`,
+            path: `./ruleset/${providerName}.${isMrs ? 'mrs' : usesTextList ? 'list' : 'yaml'}`,
             interval: 86400,
-            ...(usesTextList ? { format: 'text' } : {}),
+            ...(isMrs ? { format: 'mrs' } : usesTextList ? { format: 'text' } : {}),
         };
     });
 
@@ -249,7 +262,13 @@ export function renderClashFromTemplateModel(model) {
                     return mapRule(rule, ruleProviderMap);
                 }
                 return mapRule(
-                    { ...rule, value: toClashRuleProviderUrl(rule.value) },
+                    {
+                        ...rule,
+                        value:
+                            rule.provider?.format === 'mrs'
+                                ? rule.value
+                                : toClashRuleProviderUrl(rule.value),
+                    },
                     ruleProviderMap
                 );
             })

@@ -82,6 +82,56 @@ MATCH,🚀 节点选择
 
 ---
 
+## 📦 INI 显式 MRS 规则集（仅 Mihomo / Meta）
+
+MRS 是 Mihomo 的二进制规则集。MiSub **内置引擎**支持在 `[custom]` 中显式声明：
+
+- `ruleset=策略,clash-mrs-domain:https://...`：域名规则集。
+- `ruleset=策略,clash-mrs-ipcidr:https://...[,no-resolve]`：IP CIDR 规则集。
+
+前缀大小写不敏感，行首允许空白；URL 必须为非空 HTTP(S) 地址。MiSub 按声明生成
+`format: mrs`、对应 `behavior` 和 `.mrs` 缓存路径，**不会根据 URL 的 `.mrs` 扩展名猜测格式**。
+原有 URL-only 与 `clash-classic:` 声明仍沿用旧规则。
+
+下面是五个公开 MRS 源的完整有序示例。组中的 `DIRECT` 只是可运行的占位选择，
+请把 AI、Telegram 和兜底组改成你实际需要的代理节点或策略组：
+
+```ini
+[custom]
+custom_proxy_group=🤖 AI 服务`select`[]DIRECT
+custom_proxy_group=📲 Telegram`select`[]DIRECT
+custom_proxy_group=🎯 国内流量`select`[]DIRECT
+custom_proxy_group=🚀 兜底策略`select`[]DIRECT
+
+ruleset=🤖 AI 服务,clash-mrs-domain:https://github.com/666OS/rules/raw/release/mihomo/domain/AI.mrs
+ruleset=📲 Telegram,clash-mrs-domain:https://github.com/666OS/rules/raw/release/mihomo/domain/Telegram.mrs
+ruleset=📲 Telegram,clash-mrs-ipcidr:https://github.com/666OS/rules/raw/release/mihomo/ip/Telegram.mrs,no-resolve
+ruleset=🎯 国内流量,clash-mrs-domain:https://github.com/666OS/rules/raw/release/mihomo/domain/China.mrs
+ruleset=🎯 国内流量,clash-mrs-ipcidr:https://github.com/666OS/rules/raw/release/mihomo/ip/China.mrs,no-resolve
+ruleset=🚀 兜底策略,[]FINAL
+```
+
+> ⚠️ 使用约定
+>
+> - 必须使用实际支持 MRS 的 **Mihomo / Meta 内核**，并选择内置引擎与 Clash 输出。
+>   MiSub 的 UA 能力判断只是启发式识别；需要时在订阅 URL 加 `meta=true`。
+>   该参数不会使普通 Clash 获得 MRS 支持。
+> - 普通 Clash 以及 Sing-Box、Surge、Loon、Quantumult X、Egern 输出不支持此声明，
+>   会明确报错；内置订阅请求返回 HTTP 400，而不是静默退回 Base64。
+> - **外部 converter 不支持这些新前缀**，不要把本示例交给第三方转换引擎。
+> - 所有规则按示例放在同一个 `[custom]` 中，兜底 `[]FINAL` 必须最后。
+>   不要混用 `[Rule]`：现有解析器会把 `[Rule]` 规则放到这些 `ruleset=` 之前，
+>   提前出现的 MATCH/FINAL 会使后面的 MRS 规则无法命中。
+> - 仅最后一个明确的 `,no-resolve`（大小写不敏感）被视为选项，且只能用于 `ipcidr`；
+>   它不会影响 provider 复用，只影响该条 RULE-SET。其他逗号完整保留为 URL 数据，
+>   例如 `https://rules.example.test/download?sets=cn,private`。不支持其他尾选项；
+>   为避免误删查询数据，非保留后缀不会被当作选项解析或拒绝。
+>   若 URL 数据本身以 `,no-resolve` 结尾，请将该数据中的逗号写为 `%2C`。
+> - 同一个 URL 可由多个策略共用同一 MRS provider；但不能混用 domain/ipcidr，
+>   也不能与同 URL 的旧格式声明混用。未知 MRS 前缀、行为与非法 URL 会明确报错。
+
+---
+
 ## 🔗 链式代理（Mihomo / Meta）
 
 链式代理（前置跳板 → 落地节点）在 Mihomo / Meta 内核上通过**节点级 `dialer-proxy`** 实现，

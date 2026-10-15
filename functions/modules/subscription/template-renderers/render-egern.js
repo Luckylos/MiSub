@@ -1,5 +1,6 @@
 import yaml from 'js-yaml';
 import { normalizeUnifiedTemplateModel } from '../template-model.js';
+import { assertMrsRuleProviders } from '../mrs-rule-provider.js';
 
 /**
  * Sanitize string: trim and remove carriage returns/newlines which break YAML indentation
@@ -316,6 +317,7 @@ function mapRule(rule) {
 
 export function renderEgernFromTemplateModel(model) {
     const normalizedModel = normalizeUnifiedTemplateModel(model);
+    assertMrsRuleProviders(normalizedModel, 'egern');
 
     const proxies = normalizedModel.proxies.map(mapProxy).filter(Boolean);
 
