@@ -1,6 +1,5 @@
 import { urlsToClashProxies } from '../../../utils/url-to-clash.js';
 import { normalizeUnifiedTemplateModel } from '../template-model.js';
-import { assertMrsRuleProviders } from '../mrs-rule-provider.js';
 import { buildSingboxDnsConfig, DNS_PROXY_GROUP, SINGBOX_CN_RULE_SET } from '../safe-dns.js';
 import { getSingboxDnsRuleSet, pinRemoteRuleUrl } from '../builtin-rules-provider.js';
 
@@ -389,7 +388,6 @@ function buildRuleSets(rules) {
 
 export function renderSingboxFromTemplateModel(model, options = {}) {
     const normalizedModel = normalizeUnifiedTemplateModel(model);
-    assertMrsRuleProviders(normalizedModel, 'singbox');
     const nodeList = typeof options.nodeList === 'string' ? options.nodeList : '';
     const proxyUrls = nodeList
         .split('\n')

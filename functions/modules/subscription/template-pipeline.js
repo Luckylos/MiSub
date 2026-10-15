@@ -36,7 +36,6 @@ export function renderClashFromIniTemplate(templateText, options = {}) {
 
     let model = parseIniTemplate(templateText, {
         ...options,
-        targetFormat: 'clash',
         proxies,
     });
 
@@ -59,7 +58,6 @@ export function renderSingboxFromIniTemplate(templateText, options = {}) {
 
     let model = parseIniTemplate(templateText, {
         ...options,
-        targetFormat: 'singbox',
         proxies,
     });
     model = applySmartModelOptimizations(model);
@@ -79,7 +77,6 @@ export function renderSurgeFromIniTemplate(templateText, options = {}) {
 
     let model = parseIniTemplate(templateText, {
         ...options,
-        targetFormat: 'surge',
         proxies,
     });
     model = applySmartModelOptimizations(model);
@@ -99,7 +96,6 @@ export function renderLoonFromIniTemplate(templateText, options = {}) {
 
     let model = parseIniTemplate(templateText, {
         ...options,
-        targetFormat: 'loon',
         proxies,
     });
     model = applySmartModelOptimizations(model);
@@ -119,7 +115,6 @@ export function renderQuanxFromIniTemplate(templateText, options = {}) {
 
     let model = parseIniTemplate(templateText, {
         ...options,
-        targetFormat: 'quanx',
         proxies,
     });
     model = applySmartModelOptimizations(model);
@@ -139,7 +134,6 @@ export function renderEgernFromIniTemplate(templateText, options = {}) {
 
     let model = parseIniTemplate(templateText, {
         ...options,
-        targetFormat: 'egern',
         proxies,
     });
     model = applySmartModelOptimizations(model);

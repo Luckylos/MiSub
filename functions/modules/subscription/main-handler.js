@@ -50,7 +50,6 @@ import {
 } from './template-pipeline.js';
 import { getBuiltinTemplate } from './builtin-template-registry.js';
 import { assertPublicNetworkUrl } from '../security-utils.js';
-import { MrsRuleProviderError } from './mrs-rule-provider.js';
 
 function maskSensitiveLogValue(value) {
     const text = String(value ?? '');
@@ -1415,15 +1414,6 @@ export async function handleMisubRequest(context) {
 
             return new Response(finalContent || '', { headers: responseHeaders });
         } catch (e) {
-            if (e instanceof MrsRuleProviderError) {
-                return new Response(e.message, {
-                    status: 400,
-                    headers: {
-                        'Content-Type': 'text/plain; charset=utf-8',
-                        'Cache-Control': 'no-store, no-cache',
-                    },
-                });
-            }
             console.error(`[Builtin${targetFormat}] Generation failed:`, e);
         }
     }
